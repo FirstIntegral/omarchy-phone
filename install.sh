@@ -15,6 +15,13 @@ ln -sfn "$ROOT/bin/omarchy-phone" "$BIN_DIR/omarchy-phone"
 ln -sfn "$ROOT/share/applications/omarchy-phone.desktop" "$APP_DIR/omarchy-phone.desktop"
 ln -sfn "$ROOT/share/applications/omarchy-phone-desk.desktop" "$APP_DIR/omarchy-phone-desk.desktop"
 ln -sfn "$ROOT/share/hypr/phone.lua" "$HYPR/phone.lua"
+# A symlink is ignored by the shell QML scanner (the target sits outside
+# ~/.config/omarchy), so the bar keeps whatever it loaded first.
+PLUGIN_SRC="$ROOT/share/omarchy-plugin/firstintegral.phone"
+PLUGIN_DST="${HOME}/.config/omarchy/plugins/firstintegral.phone"
+rm -rf "$PLUGIN_DST"
+mkdir -p "$PLUGIN_DST"
+cp -a "$PLUGIN_SRC"/. "$PLUGIN_DST"/
 
 if [[ ! -f "$LUA" ]]; then
   echo "install: $LUA is missing. Hyprland rules were not wired." >&2

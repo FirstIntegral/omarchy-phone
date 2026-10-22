@@ -114,14 +114,20 @@ def choose_device(
     if len(ok) == 1:
         return ok[0]
 
-    usb = [d for d in ok if d.transport == "usb"]
-    tcp = [d for d in ok if d.transport == "tcp"]
+    # adb often lists one phone twice: the ip:port and the mDNS service name.
+    concrete = [d for d in ok if not _is_mdns_serial(d.serial)]
+    pool = concrete or ok
+    if len(pool) == 1:
+        return pool[0]
+
+    usb = [d for d in pool if d.transport == "usb"]
+    tcp = [d for d in pool if d.transport == "tcp"]
     if not prefer_tcp and len(usb) == 1:
         return usb[0]
     if prefer_tcp and len(tcp) == 1:
         return tcp[0]
 
-    lines = "\n".join(f"  {d.serial}  {d.transport}  {d.model}" for d in ok)
+    lines = "\n".join(f"  {d.serial}  {d.transport}  {d.model}" for d in pool)
     raise DeviceChoiceError(f"more than one phone. Pass --serial.\n{lines}")
 
 
@@ -154,6 +160,10 @@ def _size_after(text: str, label: str) -> tuple[int, int] | None:
         if width_s.isdigit() and height_s.isdigit():
             return int(width_s), int(height_s)
     return None
+
+
+def _is_mdns_serial(serial: str) -> bool:
+    return "_adb-tls-connect._tcp" in serial or "_adb-tls-pairing._tcp" in serial
 
 
 def _is_hostport(value: str) -> bool:

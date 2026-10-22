@@ -11,14 +11,16 @@ MIRROR_SHORT = 432
 
 @dataclass(frozen=True)
 class Stream:
-    max_size: int
     max_fps: int
     bit_rate: str
     codec: str
 
 
-USB_STREAM = Stream(1440, 60, "16M", "h264")
-TCP_STREAM = Stream(1080, 60, "8M", "h264")
+# 120 fps matches a 120 Hz panel. H.264 is the lower-latency codec.
+# Capture size is the window's long side, not a fixed cap: 960 into a
+# 1440×3120 panel is 443×960, and scrcpy then letterboxes one column.
+USB_STREAM = Stream(120, "12M", "h264")
+TCP_STREAM = Stream(120, "8M", "h264")
 DESK_BIT_RATE_USB = "16M"
 DESK_BIT_RATE_TCP = "8M"
 
@@ -68,7 +70,8 @@ def mirror_command(
     width, height = phone_window(*wm)
     stream = stream_for(transport)
     cmd = _chrome(serial, "Omarchy Phone", width, height, options, stream.max_fps, stream.bit_rate)
-    cmd.append(f"--max-size={options.max_size or stream.max_size}")
+    # Same pixels as the window, so the frame fills the client with no bar.
+    cmd.append(f"--max-size={options.max_size or max(width, height)}")
     if options.screen_off:
         cmd.append("--turn-screen-off")
     _append_tcpip(cmd, options.tcpip)
@@ -106,8 +109,12 @@ def scrcpy_env(base: dict[str, str], app_id: str) -> dict[str, str]:
     env = dict(base)
     env["SDL_APP_ID"] = app_id
     env["SDL_APP_NAME"] = "Omarchy Phone"
-    if base.get("WAYLAND_DISPLAY") and not base.get("SDL_VIDEODRIVER"):
-        env["SDL_VIDEODRIVER"] = "wayland"
+    if base.get("WAYLAND_DISPLAY"):
+        if not base.get("SDL_VIDEODRIVER"):
+            env["SDL_VIDEODRIVER"] = "wayland"
+        # A title bar is the drag handle. scrcpy otherwise eats every click
+        # as a touch on the phone, and Hyprland's own decorations are only a border.
+        env.setdefault("SDL_VIDEO_WAYLAND_PREFER_LIBDECOR", "1")
     return env
 
 
@@ -128,13 +135,15 @@ def _chrome(
     cmd += [
         "--window-title",
         title,
-        "--window-borderless",
         f"--window-width={width}",
         f"--window-height={height}",
         "--keyboard=uhid",
         "--shortcut-mod=lalt",
         "--keep-active",
         "--stay-awake",
+        "--video-buffer=0",
+        "--audio-buffer=30",
+        "--no-clipboard-autosync",
         f"--max-fps={options.fps or fps}",
         f"--video-bit-rate={rate}",
         f"--video-codec={codec}",

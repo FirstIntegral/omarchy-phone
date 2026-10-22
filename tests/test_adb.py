@@ -90,6 +90,14 @@ class ChooseTests(unittest.TestCase):
             choose_device(parse_devices("List of devices attached\n"))
         self.assertIn("no phone", str(caught.exception))
 
+    def test_mdns_alias_is_the_same_phone(self):
+        text = (
+            "192.168.1.46:33745 device product:e3q model:SM_S928B device:e3q\n"
+            "adb-RFCX808P0TF-iVjGTR._adb-tls-connect._tcp device product:e3q model:SM_S928B device:e3q\n"
+        )
+        device = choose_device(parse_devices(text))
+        self.assertEqual(device.serial, "192.168.1.46:33745")
+
     def test_serial_match(self):
         device = choose_device(parse_devices(BOTH), serial="192.168.1.20:34567")
         self.assertEqual(device.transport, "tcp")

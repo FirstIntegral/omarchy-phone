@@ -13,6 +13,18 @@ class WindowTests(unittest.TestCase):
     def test_landscape(self):
         self.assertEqual(phone_window(1920, 1080), (768, 432))
 
+    def test_generic_phone_shape(self):
+        self.assertEqual(phone_window(1080, 2400), (432, 960))
+
+
+class CaptureTests(unittest.TestCase):
+    def test_capture_matches_window(self):
+        launch = mirror_command("R5", "tcp", (1080, 2400), Options())
+        self.assertIn("--window-width=432", launch.command)
+        self.assertIn("--window-height=960", launch.command)
+        self.assertIn("--max-size=960", launch.command)
+        self.assertIn("--video-bit-rate=8M", launch.command)
+
 
 class CommandTests(unittest.TestCase):
     def test_usb_mirror(self):
@@ -25,17 +37,19 @@ class CommandTests(unittest.TestCase):
                 "R5",
                 "--window-title",
                 "Omarchy Phone",
-                "--window-borderless",
                 "--window-width=432",
                 "--window-height=936",
                 "--keyboard=uhid",
                 "--shortcut-mod=lalt",
                 "--keep-active",
                 "--stay-awake",
-                "--max-fps=60",
-                "--video-bit-rate=16M",
+                "--video-buffer=0",
+                "--audio-buffer=30",
+                "--no-clipboard-autosync",
+                "--max-fps=120",
+                "--video-bit-rate=12M",
                 "--video-codec=h264",
-                "--max-size=1440",
+                "--max-size=936",
             ],
         )
         self.assertEqual(launch.app_id, "scrcpy")
@@ -44,7 +58,10 @@ class CommandTests(unittest.TestCase):
 
     def test_wifi_mirror_is_lighter(self):
         launch = mirror_command("192.168.1.20:34567", "tcp", S24, Options(screen_off=True))
-        self.assertIn("--max-size=1080", launch.command)
+        self.assertIn("--max-size=936", launch.command)
+        self.assertIn("--max-fps=120", launch.command)
+        self.assertIn("--video-buffer=0", launch.command)
+        self.assertIn("--no-clipboard-autosync", launch.command)
         self.assertIn("--video-bit-rate=8M", launch.command)
         self.assertIn("--turn-screen-off", launch.command)
         self.assertIn("--serial", launch.command)
@@ -87,7 +104,7 @@ class CommandTests(unittest.TestCase):
         launch = mirror_command("R5", "tcp", S24, Options(tcpip=""))
         self.assertNotIn("--serial", launch.command)
         self.assertIn("--tcpip", launch.command)
-        self.assertIn("--max-size=1080", launch.command)
+        self.assertIn("--max-size=936", launch.command)
 
     def test_rejects_bad_package(self):
         with self.assertRaises(ValueError):
