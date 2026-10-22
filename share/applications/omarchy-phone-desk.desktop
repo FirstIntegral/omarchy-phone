@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Omarchy Phone Desk
+GenericName=Phone desk
+Comment=Open a second Android screen from the phone
+Exec=/bin/sh -c "exec \"$HOME/.local/bin/omarchy-phone\" desk"
+Icon=phone
+Terminal=false
+Type=Application
+Categories=Utility;RemoteAccess;
+Keywords=android;phone;scrcpy;dex;desk;
+StartupNotify=false

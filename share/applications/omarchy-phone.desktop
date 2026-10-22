@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Omarchy Phone
+GenericName=Phone mirror
+Comment=Mirror and control an Android phone
+Exec=/bin/sh -c "exec \"$HOME/.local/bin/omarchy-phone\" mirror"
+Icon=phone
+Terminal=false
+Type=Application
+Categories=Utility;RemoteAccess;
+Keywords=android;phone;scrcpy;samsung;s24;
+StartupNotify=false

@@ -1,0 +1,19 @@
+# Local AI session files — never commit unless the user says otherwise
+session_compact.md
+# Retired 2026-10-21. Do not create this file. Ignore it when an old project still has one.
+session_transcript.md
+claude_memory_import.md
+notes.allow
+
+# Legacy session paths (retired 2026-07; keep ignored if present)
+docs/SESSION.md
+docs/session-archive/
+docs/session-flushes/
+
+# Lean paper artifacts (opt-in docs/paper/lean/)
+docs/paper/lean/.lake/
+
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
