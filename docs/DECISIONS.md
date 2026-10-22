@@ -2,6 +2,12 @@
 
 Append an entry (date + decision + why + rejected alternatives) in the same turn a meaningful choice is made.
 
+## 2026-10-22 Drop Super while the phone window is focused
+
+- **Decision:** `share/hypr/phone.lua` binds Left Super and Right Super with `auto_consuming`. The bind returns `{ ok = true }` only when the focused window is `scrcpy`, `scrcpy-desk`, `scrcpy-camera`, or one of the three Omarchy Phone titles. Otherwise it returns `{ ok = false }` and the key is passed on. `--shortcut-mod` stays `lalt`.
+- **Why:** The mirror uses a UHID keyboard. Super is not an scrcpy shortcut, so scrcpy forwards it as `KEYCODE_META_LEFT` (117). On this S24 Ultra, `dumpsys input` records that key from the scrcpy device as `KEY_GESTURE_TYPE_ALL_APPS`, action `COMPLETE`. The gesture runs on release, so a Super+drag of the window and a bare Super tap both step the phone back. Hyprland tracks the modifier in xkb before it decides whether to forward the key, so swallowing the event leaves Super+drag and Super+key binds intact. The release is withheld because the press was not sent.
+- **Rejected:** adding `lsuper` to `--shortcut-mod`. That also swallows Super, but every Super chord that reaches the window becomes an scrcpy shortcut. `Super+q` would quit the mirror. `Super+r` would rotate the phone. Those chords belong to Hyprland.
+
 ## 2026-10-22 The phone edge is the screen, on any Android shape
 
 - **Decision:** The mirror encodes at the window's long side (`--max-size` equals that side). Hyprland draws no border on the scrcpy windows. The mirror window rule does not force 432×936. scrcpy asks for the size computed from `wm size`.

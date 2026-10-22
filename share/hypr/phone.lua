@@ -73,3 +73,44 @@ o.window({ title = "^Omarchy Phone Camera$" }, {
 -- any chat or terminal whose title merely mentions scrcpy, and the key
 -- then looks like it did nothing.
 o.bind("SUPER + SHIFT + H", "Phone", { launch = "omarchy-phone", focus = "Omarchy Phone" })
+
+-- UHID forwards Super as KEYCODE_META_LEFT. One UI completes that key,
+-- alone, as ALL_APPS, which steps the phone back. That fires on release,
+-- including after a Super+drag. Alt stays the scrcpy shortcut key.
+-- Swallow the key only while a phone window is focused. xkb still has
+-- the modifier, so Super+drag and Super+key keep working. A press that
+-- is not sent is paired with a release that is not sent.
+
+local function phone_focused()
+  local window = hl.get_active_window()
+  if not window then
+    return false
+  end
+  local class = window.class or ""
+  local title = window.title or ""
+  if class == "scrcpy" or class == "scrcpy-desk" or class == "scrcpy-camera" then
+    return true
+  end
+  if title == "Omarchy Phone" or title == "Omarchy Phone Desk" or title == "Omarchy Phone Camera" then
+    return true
+  end
+  return false
+end
+
+local function drop_super_on_phone()
+  if phone_focused() then
+    return { ok = true }
+  end
+  return { ok = false }
+end
+
+hl.bind("Super_L", drop_super_on_phone, {
+  auto_consuming = true,
+  ignore_mods = true,
+  description = "Drop Super on the phone window",
+})
+hl.bind("Super_R", drop_super_on_phone, {
+  auto_consuming = true,
+  ignore_mods = true,
+  description = "Drop right Super on the phone window",
+})

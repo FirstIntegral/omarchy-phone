@@ -104,7 +104,7 @@ The bar icon (a small slab, first on the right) does the same thing as **Super+S
 
 The stream is H.264 at 120 fps with no video buffer. The capture is the same size as the window, so the picture fills the frame. A theme border is not drawn around it: that border is a gradient, and it made each edge a different color. Clipboard contents are not copied across by themselves.
 
-Left **Alt** is the shortcut key inside the window. Super stays Hyprland.
+Left **Alt** is the shortcut key inside the window. Super stays Hyprland. While the phone window is focused, that Super press is not sent to the phone: One UI treats it as All Apps and steps back on release.
 
 - Right-click: Back. Middle-click: Home.
 - Alt+o turns the phone panel off. Alt+Shift+o turns it on.
