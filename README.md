@@ -42,7 +42,7 @@ The bar icon opens a card. A trusted phone closes the card and opens the mirror.
 
 Android forgets this computer after about a week unless **Disable adb authorization timeout** is on. A successful open asks the phone to turn that timeout off (`adb_allowed_connection_time` set to 0). That is the same switch. The key then stays until you revoke it. The Wireless debugging switch itself still turns off when the phone reboots. Turn the switch back on. No new code.
 
-If the phone is on Wi-Fi and still rejects this computer, the bar click posts a notification. It names the address and the `pair` command. The window stays closed until you pair again.
+If the phone is on Wi-Fi and still rejects this computer, the bar card stays open and shows the pairing steps.
 
 ## Once on the computer
 
@@ -62,7 +62,7 @@ Phone and PC rebooted, same Wi-Fi:
 1. Turn **Wireless debugging** back on. The phone can stay locked for that switch.
 2. Tap the bar icon, or press **Super+Shift+H**.
 
-No pairing code if this PC is still authorized. If the saved port is dead and exactly one phone is advertising, the launcher finds it. If the phone rejects the key, the notification tells you to open the pairing popup. If nothing is advertising, turn the switch on.
+No pairing code if this PC is still authorized. If the saved port is dead and exactly one phone is advertising, the launcher finds it. If the phone rejects the key, the card tells you to open the pairing popup. If nothing is advertising, turn the switch on.
 
 ## Lock screen stays black
 
@@ -82,7 +82,7 @@ Once the phone is unlocked, the picture comes back.
 
 Wireless debugging is a shell for every computer you have paired, for as long as the switch is on. This PC's key lives in `~/.android/adbkey`. Turn the switch off on a network you do not trust. USB debugging has the same power over the cable.
 
-The phone clipboard is not copied here on its own. A password copied on the phone stays there until you paste on purpose. Ctrl+V still pastes into the phone when you ask.
+The phone clipboard is not copied here on its own. A password copied on the phone stays there until you paste on purpose. Ctrl+Alt+V pastes the PC clipboard into the phone. Left Alt+V is the same key. Ctrl+V alone leaves the phone clipboard alone.
 
 There is no extra listener on the PC. The only network path is `adb` to the phone.
 
@@ -103,7 +103,7 @@ There is no extra listener on the PC. The only network path is `adb` to the phon
 
 The window opens on the right. Drag the title bar, or hold **Super** and drag, to move it. A drag without Super is a swipe on the phone.
 
-The bar icon (a small slab, first on the right) does the same thing as **Super+Shift+H**.
+The bar icon (a small slab, first on the right) opens the pairing card, then the mirror when this PC is already trusted. **Super+Shift+H** opens or focuses the mirror.
 
 The stream is H.264 at 120 fps with no video buffer. The capture is the same size as the window, so the picture fills the frame. A theme border is not drawn around it: that border is a gradient, and it made each edge a different color. Clipboard contents are not copied across by themselves.
 
