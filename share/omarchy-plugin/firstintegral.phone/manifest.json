@@ -5,14 +5,14 @@
   "version": "0.1.0",
   "author": "Brusk Kawa Abdalla",
   "license": "MIT",
-  "description": "Open the S24 mirror. Same action as Super+Shift+H.",
+  "description": "Pair the phone from the bar, or open the mirror.",
   "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
     "displayName": "Phone",
-    "description": "Open or focus the phone window.",
+    "description": "Pair the phone, or open the mirror.",
     "category": "System",
     "aliases": ["phone", "scrcpy", "s24"],
     "allowMultiple": false,

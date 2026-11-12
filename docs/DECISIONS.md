@@ -2,12 +2,18 @@
 
 Append an entry (date + decision + why + rejected alternatives) in the same turn a meaningful choice is made.
 
+## 2026-11-12 Super+Shift+H matches the window class
+
+- **Decision:** The key runs `omarchy-phone focus`. That focuses a client whose class is exactly `scrcpy`, `scrcpy-desk`, or `scrcpy-camera`. A mirror title wins over the desk and the camera. If none of those classes are open, it starts the mirror. The chord is not a stock Omarchy bind. `Super+Ctrl+H` stays the hardware menu.
+- **Why:** `omarchy-launch-or-focus` tests the class and the title, ignoring case. `focus = "scrcpy"` still matches a window whose title contains that word. `focus = "Omarchy Phone"` matched this chat. Anyone who installs the repo would get that steal.
+- **Rejected:** keeping the stock helper with a tighter phrase; unbinding `Super+Ctrl+H`; matching the title at all.
+
 ## 2026-11-12 The bar card takes the pairing code
 
 - **Decision:** A click on `firstintegral.phone` opens a `KeyboardPanel`. `omarchy-phone status` prints one JSON line. `ready` launches the mirror and closes the card. `pair` keeps the card up, with the phone steps and a 6-digit box. The port comes from `_adb-tls-pairing`. The code is checked as six digits, then passed as one argv element to `omarchy-phone pair`. Pair prints `{"ok","connected"}` on stdout. The card does not show adb text. Strings live in `i18n/en.json`.
 - **Why:** The key refusal was a chat message and a notification. The code only exists on the phone screen. The next time has to be solvable from the icon.
 - **Rejected:** typing the port as well as the code; a shell string that includes the code; leaving the one-tap launch in place when the key is refused, which exits with no window.
-- **Follow-up:** `omarchy-launch-or-focus 'Omarchy Phone'` is a case-insensitive substring match. On 2026-11-12 it matched the grok window title that contains `Omarchy phone`, focused that window, switched to its workspace, and warped the cursor to the window center. The card click must not call that helper. A `PopupCard` draws, and it does not take keys. `KeyboardPanel` does. While that card is open the launcher sets `cursor:no_warps` true and restores false on close, so the pointer stays put. The user confirmed the code box accepts typing. The shell hot reload kept the original click handler until `omarchy-restart-shell`. `share/hypr/phone.lua` now focuses class `scrcpy`. Hyprland has not reloaded that file.
+- **Follow-up:** `omarchy-launch-or-focus 'Omarchy Phone'` is a case-insensitive substring match. On 2026-11-12 it matched the grok window title that contains `Omarchy phone`, focused that window, switched to its workspace, and warped the cursor to the window center. The card click must not call that helper. A `PopupCard` draws, and it does not take keys. `KeyboardPanel` does. While that card is open the launcher sets `cursor:no_warps` true and restores false on close, so the pointer stays put. The user confirmed the code box accepts typing. The shell hot reload kept the original click handler until `omarchy-restart-shell`. The keybind fix is `2026-11-12 Super+Shift+H matches the window class`.
 
 ## 2026-11-12 Keep the wireless key, and say when the phone rejects it
 

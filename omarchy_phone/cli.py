@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -91,6 +92,10 @@ def main(
             return _mdns(adb, err)
         if ns.cmd == "status":
             return _status(adb, env, out)
+        if ns.cmd == "focus":
+            if _focus_phone(err):
+                return 0
+            return main(["mirror"], env=env, stderr=err, stdout=out, adb_runner=adb, scrcpy_exec=launch)
         if ns.cmd == "pair":
             if not _code_ok(ns.code):
                 raise ValueError("the code is 6 digits")
@@ -156,6 +161,7 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("devices", help="list adb devices")
     sub.add_parser("mdns", help="list wireless debugging services")
     sub.add_parser("status", help="print one JSON line: ready, pair, or off")
+    sub.add_parser("focus", help="focus a scrcpy window, or start the mirror")
     sub.add_parser("doctor", help="check adb, scrcpy, and whether a phone is ready")
 
     pair = sub.add_parser("pair", help="pair wireless debugging")
@@ -480,6 +486,60 @@ def _keep_paired(adb: Runner, serial: str, err: object) -> None:
     )
     if got.returncode != 0 or (got.stdout or "").strip() != "0":
         _write(err, "Could not disable the adb authorization timeout on the phone.\n")
+
+
+_PHONE_CLASSES = ("scrcpy", "scrcpy-desk", "scrcpy-camera")
+_PHONE_TITLES = ("Omarchy Phone", "Omarchy Phone Desk", "Omarchy Phone Camera")
+
+
+def focus_address(clients: list) -> str | None:
+    """Address of a phone window. Class must be exact. Titles never qualify alone."""
+    matches = [c for c in clients if isinstance(c, dict) and c.get("class") in _PHONE_CLASSES]
+    for title in _PHONE_TITLES:
+        for client in matches:
+            if client.get("title") == title and _address_ok(str(client.get("address") or "")):
+                return str(client["address"])
+    for client in matches:
+        if _address_ok(str(client.get("address") or "")):
+            return str(client["address"])
+    return None
+
+
+def _address_ok(value: str) -> bool:
+    return re.fullmatch(r"0x[0-9a-fA-F]+", value) is not None
+
+
+def _hypr_clients() -> list:
+    try:
+        result = subprocess.run(
+            ["hyprctl", "clients", "-j"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return []
+    if result.returncode != 0:
+        return []
+    try:
+        data = json.loads(result.stdout or "")
+    except json.JSONDecodeError:
+        return []
+    return data if isinstance(data, list) else []
+
+
+def _focus_phone(err: object) -> bool:
+    address = focus_address(_hypr_clients())
+    if not address:
+        return False
+    focused = subprocess.run(
+        ["hyprctl", "dispatch", "focuswindow", f"address:{address}"],
+        check=False,
+    )
+    if focused.returncode != 0:
+        _write(err, "could not focus the phone window\n")
+        return False
+    return True
 
 
 def _code_ok(value: str) -> bool:

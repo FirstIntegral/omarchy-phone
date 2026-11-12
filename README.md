@@ -103,7 +103,7 @@ There is no extra listener on the PC. The only network path is `adb` to the phon
 
 The window opens on the right. Drag the title bar, or hold **Super** and drag, to move it. A drag without Super is a swipe on the phone.
 
-The bar icon (a small slab, first on the right) opens the pairing card, then the mirror when this PC is already trusted. **Super+Shift+H** opens or focuses the mirror.
+The bar icon (a small slab, first on the right) opens the pairing card, then the mirror when this PC is already trusted. **Super+Shift+H** focuses a `scrcpy` window or starts the mirror. It does not look at window titles. Stock Omarchy uses **Super+Ctrl+H** for the hardware menu, not this chord.
 
 The stream is H.264 at 120 fps with no video buffer. The capture is the same size as the window, so the picture fills the frame. A theme border is not drawn around it: that border is a gradient, and it made each edge a different color. Clipboard contents are not copied across by themselves.
 

@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from omarchy_phone.cli import main
+from omarchy_phone.cli import focus_address, main
 from omarchy_phone.config import load_last
 
 
@@ -327,6 +327,26 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("desk", out.getvalue())
         self.assertIn("pair", out.getvalue())
+
+
+class FocusAddressTests(unittest.TestCase):
+    def test_a_chat_title_is_not_the_phone(self):
+        clients = [
+            {"class": "foot", "title": "Restore Omarchy phone wireless", "address": "0xabc"},
+            {"class": "foot", "title": "scrcpy tips", "address": "0xdef"},
+        ]
+        self.assertIsNone(focus_address(clients))
+
+    def test_the_mirror_wins_over_the_desk(self):
+        clients = [
+            {"class": "scrcpy-desk", "title": "Omarchy Phone Desk", "address": "0x11"},
+            {"class": "scrcpy", "title": "Omarchy Phone", "address": "0x22"},
+        ]
+        self.assertEqual(focus_address(clients), "0x22")
+
+    def test_a_weird_address_is_dropped(self):
+        clients = [{"class": "scrcpy", "title": "Omarchy Phone", "address": "0x22;rm"}]
+        self.assertIsNone(focus_address(clients))
 
 
 if __name__ == "__main__":

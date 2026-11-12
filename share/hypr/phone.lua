@@ -69,9 +69,10 @@ o.window({ title = "^Omarchy Phone Camera$" }, {
   keep_aspect_ratio = true,
 })
 
--- Focus by the scrcpy class. "Omarchy Phone" is a case-insensitive match,
--- so a chat whose title contains those words takes the focus instead.
-o.bind("SUPER + SHIFT + H", "Phone", { launch = "omarchy-phone", focus = "scrcpy" })
+-- Our command checks the window class. omarchy-launch-or-focus also searches
+-- titles, case-insensitive, so a chat that mentions the phone takes the key.
+-- Super+Shift+H is not a stock Omarchy chord. Super+Ctrl+H is the hardware menu.
+o.bind("SUPER + SHIFT + H", "Phone", "omarchy-phone focus")
 
 -- UHID forwards Super as KEYCODE_META_LEFT. One UI completes that key,
 -- alone, as ALL_APPS, which steps the phone back. That fires on release,
