@@ -1,0 +1,22 @@
+{
+  "phone.looking": "Looking for the phone.",
+  "phone.ready": "Phone is connected. Opening it.",
+  "phone.pairLead": "The phone is on Wi-Fi. This computer is not paired.",
+  "phone.steps": "On the phone, open Settings, Developer options, Wireless debugging.\nTap Pair device with pairing code.\nLeave that screen open. It shows a 6-digit code.",
+  "phone.codeLabel": "Type that code in this box.",
+  "phone.placeholder": "6-digit code",
+  "phone.port": "The phone screen shows port %1.",
+  "phone.noPopup": "That pairing screen is not open yet. Open it, then press Look again.",
+  "phone.pairButton": "Pair and open",
+  "phone.lookButton": "Look again",
+  "phone.offLead": "Wireless debugging is off.",
+  "phone.offSteps": "On the phone, turn on Developer options, Wireless debugging. Then press Look again.",
+  "phone.paired": "Paired. Opening the phone.",
+  "phone.pairedWait": "Paired. The phone is not connected yet. Leave Wireless debugging open, then press Look again.",
+  "phone.badCode": "The code is 6 digits.",
+  "phone.failed": "Pairing failed. Check the code. Leave the phone screen open.",
+  "phone.many": "More than one phone is on this Wi-Fi.",
+  "phone.unauthorized": "Unlock the phone and tap Allow.",
+  "phone.error": "Could not ask adb.",
+  "phone.tooltip": "Phone. Click to open, or to pair."
+}

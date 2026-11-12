@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shlex
 import shutil
@@ -14,13 +15,16 @@ from omarchy_phone import __version__
 from omarchy_phone.adb import (
     Device,
     DeviceChoiceError,
+    NeedsPairError,
     choose_device,
     connect_candidates,
     fallback_wm,
+    key_refused_text,
     parse_devices,
     parse_mdns,
     parse_wm_size,
     ready_devices,
+    refused_address,
 )
 from omarchy_phone.config import load_last, save_last
 from omarchy_phone.launch import Options, desk_command, camera_command, mirror_command, scrcpy_env
@@ -60,6 +64,7 @@ def main(
     adb_runner: Runner | None = None,
     scrcpy_exec: Exec | None = None,
     stderr: object | None = None,
+    stdout: object | None = None,
 ) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if not args or (args[0].startswith("-") and args[0] not in {"-h", "--help", "--version"}):
@@ -73,6 +78,7 @@ def main(
 
     env = dict(os.environ if environ is None else environ)
     err = sys.stderr if stderr is None else stderr
+    out = sys.stdout if stdout is None else stdout
     adb = adb_runner or _subprocess_runner()
     launch = scrcpy_exec or _exec
 
@@ -83,8 +89,15 @@ def main(
             return _devices(adb, err)
         if ns.cmd == "mdns":
             return _mdns(adb, err)
+        if ns.cmd == "status":
+            return _status(adb, env, out)
         if ns.cmd == "pair":
-            return _adb_passthrough(adb, ["adb", "pair", ns.hostport, ns.code], err)
+            if not _code_ok(ns.code):
+                raise ValueError("the code is 6 digits")
+            code = _adb_passthrough(adb, ["adb", "pair", ns.hostport, ns.code], err)
+            connected = _adopt_after_pair(adb, env, err) if code == 0 else False
+            _write(out, json.dumps({"ok": code == 0, "connected": connected}) + "\n")
+            return code
         if ns.cmd == "connect":
             code = _adb_passthrough(adb, ["adb", "connect", ns.hostport], err)
             if code == 0:
@@ -96,6 +109,9 @@ def main(
         if ns.cmd == "apps":
             return _apps(ns, adb, env, launch, err)
         return _open(ns, adb, env, launch, err)
+    except NeedsPairError as exc:
+        _fail(str(exc), env, err)
+        return 2
     except DeviceChoiceError as exc:
         _fail(str(exc) + "\n\n" + SETUP, env, err)
         return 2
@@ -139,6 +155,7 @@ def _parser() -> argparse.ArgumentParser:
 
     sub.add_parser("devices", help="list adb devices")
     sub.add_parser("mdns", help="list wireless debugging services")
+    sub.add_parser("status", help="print one JSON line: ready, pair, or off")
     sub.add_parser("doctor", help="check adb, scrcpy, and whether a phone is ready")
 
     pair = sub.add_parser("pair", help="pair wireless debugging")
@@ -174,7 +191,7 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
 def _open(ns: argparse.Namespace, adb: Runner, env: dict[str, str], launch: Exec, err: object) -> int:
     _require("adb", adb_injected=_injected(adb))
     options = _options(ns)
-    serial, transport, wm = _target(ns, adb, env)
+    serial, transport, wm = _target(ns, adb, env, err)
     if ns.cmd == "tcpip":
         options = _with_tcpip(options, ns.address or "")
         # scrcpy --tcpip picks the USB device itself. Do not also pass --serial.
@@ -201,6 +218,7 @@ def _target(
     ns: argparse.Namespace,
     adb: Runner,
     env: dict[str, str],
+    err: object,
 ) -> tuple[str | None, str, tuple[int, int]]:
     if ns.cmd == "tcpip" and ns.address:
         return None, "tcp", _wm_if_listed(adb)
@@ -211,6 +229,8 @@ def _target(
         )
     if device.transport == "tcp" and ns.cmd != "tcpip" and not ns.dry_run:
         save_last(env, device.serial)
+    if not ns.dry_run:
+        _keep_paired(adb, device.serial, err)
     return device.serial, device.transport, _wm(adb, device)
 
 
@@ -253,12 +273,66 @@ def _require_scrcpy(env: Mapping[str, str]) -> None:
 
 
 def _select(ns: argparse.Namespace, adb: Runner, env: dict[str, str]) -> Device:
-    devices = _device_list(adb)
-    if not ready_devices(devices) and not getattr(ns, "no_reconnect", False):
-        for address in connect_candidates(load_last(env), _mdns_services(adb)):
-            adb(["adb", "connect", address])
-        devices = _device_list(adb)
+    devices, services, failures = _recover(ns, adb, env)
+    if (
+        not ready_devices(devices)
+        and not getattr(ns, "no_reconnect", False)
+        and not any(d.state == "unauthorized" for d in devices)
+    ):
+        refused = refused_address(services, failures)
+        if refused:
+            raise NeedsPairError(key_refused_text(refused))
     return choose_device(devices, serial=ns.serial, prefer_tcp=bool(ns.wifi))
+
+
+def _recover(ns: argparse.Namespace, adb: Runner, env: dict[str, str]):
+    devices = _device_list(adb)
+    services = []
+    failures: list[tuple[str, str]] = []
+    if not ready_devices(devices) and not getattr(ns, "no_reconnect", False):
+        services = _mdns_services(adb)
+        for address in connect_candidates(load_last(env), services):
+            result = adb(["adb", "connect", address])
+            text = f"{result.stdout or ''}{result.stderr or ''}"
+            if not _connect_succeeded(text):
+                failures.append((address, text))
+        devices = _device_list(adb)
+    return devices, services, failures
+
+
+def _status(adb: Runner, env: dict[str, str], out: object) -> int:
+    _require("adb", adb_injected=_injected(adb))
+    try:
+        payload = _status_payload(adb, env)
+    except DeviceChoiceError:
+        payload = {"state": "error", "pairing": ""}
+    _write(out, json.dumps(payload, separators=(",", ":")) + "\n")
+    return {"ready": 0, "pair": 2, "off": 3, "many": 4, "unauthorized": 5}.get(payload["state"], 1)
+
+
+def _status_payload(adb: Runner, env: dict[str, str]) -> dict[str, str]:
+    ns = argparse.Namespace(no_reconnect=False, serial=None, wifi=False)
+    devices, services, failures = _recover(ns, adb, env)
+    pairing = ""
+    connects: list[str] = []
+    for service in services:
+        if service.kind == "pairing" and not pairing:
+            pairing = service.address
+        elif service.kind == "connect":
+            connects.append(service.address)
+    if ready_devices(devices):
+        try:
+            choose_device(devices)
+        except DeviceChoiceError:
+            return {"state": "many", "pairing": ""}
+        return {"state": "ready", "pairing": ""}
+    if any(device.state == "unauthorized" for device in devices):
+        return {"state": "unauthorized", "pairing": ""}
+    if len(connects) > 1:
+        return {"state": "many", "pairing": ""}
+    if refused_address(services, failures) or pairing:
+        return {"state": "pair", "pairing": pairing}
+    return {"state": "off", "pairing": ""}
 
 
 def _device_list(adb: Runner) -> list[Device]:
@@ -362,6 +436,54 @@ def _adb_passthrough(adb: Runner, cmd: list[str], err: object) -> int:
     if cmd[1] == "connect" and result.returncode == 0 and not _connect_succeeded(result.stdout or ""):
         return result.returncode or 1
     return result.returncode
+
+
+def _adopt_after_pair(adb: Runner, env: dict[str, str], err: object) -> bool:
+    """Use the one advertised connect port. Pairing does not open the mirror."""
+    services = _mdns_services(adb)
+    for address in connect_candidates(load_last(env), services):
+        result = adb(["adb", "connect", address])
+        text = f"{result.stdout or ''}{result.stderr or ''}"
+        if not _connect_succeeded(text):
+            continue
+        save_last(env, address)
+        _write(err, f"connected to {address}\n")
+        devices = ready_devices(_device_list(adb))
+        matched = [device for device in devices if device.serial == address]
+        if matched:
+            _keep_paired(adb, matched[0].serial, err)
+        return True
+    _write(err, "Paired. Tap the bar once Wireless debugging lists this computer.\n")
+    return False
+
+
+def _keep_paired(adb: Runner, serial: str, err: object) -> None:
+    """Same switch as Developer options → Disable adb authorization timeout."""
+    put = adb(
+        [
+            "adb",
+            "-s",
+            serial,
+            "shell",
+            "settings",
+            "put",
+            "global",
+            "adb_allowed_connection_time",
+            "0",
+        ]
+    )
+    if put.returncode != 0:
+        _write(err, "Could not disable the adb authorization timeout on the phone.\n")
+        return
+    got = adb(
+        ["adb", "-s", serial, "shell", "settings", "get", "global", "adb_allowed_connection_time"]
+    )
+    if got.returncode != 0 or (got.stdout or "").strip() != "0":
+        _write(err, "Could not disable the adb authorization timeout on the phone.\n")
+
+
+def _code_ok(value: str) -> bool:
+    return len(value) == 6 and value.isdigit()
 
 
 def _hostport_ok(value: str) -> bool:

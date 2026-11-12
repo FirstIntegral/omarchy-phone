@@ -30,16 +30,19 @@ Same Wi-Fi is not enough. scrcpy talks to the phone over `adb`. Android only exp
 
 The switch is in Developer options → **Wireless debugging**. It usually turns **off** when the phone reboots. Pairing survives the reboot. The port does not: Android picks a new connect port each time you turn the switch on.
 
-Pair once, while the pairing popup is open. The popup's port and the main page's port are different numbers. Use the popup for `pair`, then the main page for `connect`.
+Pair once, while the pairing popup is open. The popup's port and the main page's port are different numbers. Use the popup for `pair`. When exactly one phone is advertising, `pair` then connects to that phone. You do not have to type the main-page port.
 
 ```bash
 omarchy-phone pair 192.168.1.20:37123 123456
-omarchy-phone connect 192.168.1.20:41234
 ```
 
-`omarchy-phone mdns` lists both. After one good connect, plain `omarchy-phone` tries the saved address, then a single `_adb-tls-connect` service if that address is stale. Two phones on the same Wi-Fi: it will not guess. Pass `--serial`.
+`omarchy-phone mdns` lists both ports while the popup is open. After one good connect, plain `omarchy-phone` tries the saved address, then a single `_adb-tls-connect` service if that address is stale. Two phones on the same Wi-Fi: it will not guess. Pass `--serial`.
 
-In Developer options, **Disable adb authorization timeout** keeps this computer trusted. Without it, Android drops the authorization after about a week.
+The bar icon opens a card. A trusted phone closes the card and opens the mirror. A refused key leaves the card open. The card says to tap **Pair device with pairing code** and leave that screen up. The 6-digit code is typed in the box on the card, then **Pair and open**. The port is read from the phone. It is not typed.
+
+Android forgets this computer after about a week unless **Disable adb authorization timeout** is on. A successful open asks the phone to turn that timeout off (`adb_allowed_connection_time` set to 0). That is the same switch. The key then stays until you revoke it. The Wireless debugging switch itself still turns off when the phone reboots. Turn the switch back on. No new code.
+
+If the phone is on Wi-Fi and still rejects this computer, the bar click posts a notification. It names the address and the `pair` command. The window stays closed until you pair again.
 
 ## Once on the computer
 
@@ -59,7 +62,7 @@ Phone and PC rebooted, same Wi-Fi:
 1. Turn **Wireless debugging** back on. The phone can stay locked for that switch.
 2. Tap the bar icon, or press **Super+Shift+H**.
 
-No pairing code if this PC is still authorized. If the saved port is dead and exactly one phone is advertising, the launcher finds it. If nothing is advertising, turn the switch on and look at the new port.
+No pairing code if this PC is still authorized. If the saved port is dead and exactly one phone is advertising, the launcher finds it. If the phone rejects the key, the notification tells you to open the pairing popup. If nothing is advertising, turn the switch on.
 
 ## Lock screen stays black
 

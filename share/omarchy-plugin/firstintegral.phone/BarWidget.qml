@@ -1,15 +1,33 @@
 import QtQuick
+import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
-// One tap does what Super+Shift+H does: focus the phone window, or open it.
-// The mark is drawn here. A second QML file is invisible to the shell when
-// the plugin directory is a symlink out of ~/.config/omarchy.
+// One tap opens the card. A trusted phone opens the mirror. A refused key
+// stays on the card so the code is typed there.
+// The mark is drawn here. The plugin directory must be a real directory.
+// A symlink out of ~/.config/omarchy hides the other QML files.
 BarWidget {
   id: root
   moduleName: "firstintegral.phone"
 
+  readonly property bool opened: panel.opened
+
+  function close() { panel.close() }
+
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
+
+  Commons.Translations { id: strings; directory: Qt.resolvedUrl("i18n") }
+
+  PhonePanel {
+    id: panel
+    width: 0
+    height: 0
+    bar: root.bar
+    anchorItem: button
+    hostWidget: root
+  }
 
   WidgetButton {
     id: button
@@ -20,10 +38,11 @@ BarWidget {
     labelVisible: false
     keepSpace: true
     fixedWidth: bar ? bar.barSize : 28
-    tooltipText: "Phone. Super+drag moves the window."
+    tooltipText: strings.t("phone.tooltip")
     onPressed: function(mouseButton) {
       if (!root.bar || mouseButton !== Qt.LeftButton) return
-      root.bar.run("omarchy-launch-or-focus 'Omarchy Phone' 'uwsm-app -- omarchy-phone'")
+      console.log("phone: tap")
+      panel.toggle()
     }
 
     Item {

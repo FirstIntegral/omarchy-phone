@@ -1,4 +1,5 @@
 import io
+import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -22,10 +23,12 @@ class Result:
 
 
 class FakeAdb:
-    def __init__(self, devices=USB, wm=WM, mdns=""):
+    def __init__(self, devices=USB, wm=WM, mdns="", reject_connect=False, settings_fail=False):
         self.devices = devices
         self.wm = wm
         self.mdns = mdns
+        self.reject_connect = reject_connect
+        self.settings_fail = settings_fail
         self.calls = []
 
     def __call__(self, cmd):
@@ -39,11 +42,19 @@ class FakeAdb:
         if list(cmd[:3]) == ["adb", "-s", "R5CW123ABC"] and "wm" in cmd:
             return Result(out=self.wm)
         if cmd[:2] == ["adb", "connect"]:
+            if self.reject_connect:
+                return Result(out=f"failed to connect to {cmd[2]}\n")
             self.devices = (
                 "List of devices attached\n"
                 f"{cmd[2]} device product:e3q model:SM_S928U device:e3q\n"
             )
             return Result(out=f"connected to {cmd[2]}\n")
+        if len(cmd) >= 5 and cmd[1] == "-s" and cmd[3:5] == ["shell", "settings"]:
+            if self.settings_fail:
+                return Result(code=1, err="denied\n")
+            if "get" in cmd:
+                return Result(out="0\n")
+            return Result()
         if cmd[:2] == ["adb", "pair"]:
             return Result(out="Successfully paired\n")
         return Result(code=1, err="unexpected " + " ".join(cmd))
@@ -150,6 +161,7 @@ class CliTests(unittest.TestCase):
                 environ=self.env(Path(tmp)),
                 adb_runner=FakeAdb(),
                 stderr=err,
+                stdout=io.StringIO(),
             )
         self.assertEqual(code, 0)
         self.assertIn("paired", err.getvalue().lower())
@@ -163,6 +175,148 @@ class CliTests(unittest.TestCase):
                 stderr=err,
             )
         self.assertEqual(code, 2)
+
+    def test_advertised_phone_that_rejects_the_key(self):
+        err = io.StringIO()
+        mdns = "adb-R5 _adb-tls-connect._tcp 192.168.1.46:35231\n"
+        fake = FakeAdb(devices="List of devices attached\n", mdns=mdns, reject_connect=True)
+        with TemporaryDirectory() as tmp:
+            code = main(
+                ["mirror"],
+                environ=self.env(Path(tmp)),
+                adb_runner=fake,
+                stderr=err,
+            )
+        self.assertEqual(code, 2)
+        text = err.getvalue()
+        self.assertIn("Phone at 192.168.1.46:35231 refused this computer's key.", text)
+        self.assertNotIn("Build number", text)
+        self.assertIn(["adb", "connect", "192.168.1.46:35231"], fake.calls)
+
+    def test_launch_disables_auth_timeout(self):
+        err = io.StringIO()
+        fake = FakeAdb()
+        launched = []
+        with TemporaryDirectory() as tmp:
+            code = main(
+                ["mirror"],
+                environ=self.env(Path(tmp)),
+                adb_runner=fake,
+                scrcpy_exec=lambda cmd, env: launched.append(cmd) or 0,
+                stderr=err,
+            )
+        self.assertEqual(code, 0)
+        self.assertTrue(launched)
+        self.assertIn(
+            [
+                "adb",
+                "-s",
+                "R5CW123ABC",
+                "shell",
+                "settings",
+                "put",
+                "global",
+                "adb_allowed_connection_time",
+                "0",
+            ],
+            fake.calls,
+        )
+        self.assertNotIn("Could not disable", err.getvalue())
+
+    def test_timeout_write_failure_still_opens(self):
+        err = io.StringIO()
+        fake = FakeAdb(settings_fail=True)
+        launched = []
+        with TemporaryDirectory() as tmp:
+            code = main(
+                ["mirror"],
+                environ=self.env(Path(tmp)),
+                adb_runner=fake,
+                scrcpy_exec=lambda cmd, env: launched.append(cmd) or 0,
+                stderr=err,
+            )
+        self.assertEqual(code, 0)
+        self.assertTrue(launched)
+        self.assertIn("Could not disable the adb authorization timeout", err.getvalue())
+
+    def test_pair_connects_the_one_advertised_phone(self):
+        err = io.StringIO()
+        out = io.StringIO()
+        mdns = "adb-R5 _adb-tls-connect._tcp 192.168.1.20:34567\n"
+        fake = FakeAdb(devices="List of devices attached\n", mdns=mdns)
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            code = main(
+                ["pair", "192.168.1.20:40123", "123456"],
+                environ=self.env(root),
+                adb_runner=fake,
+                stderr=err,
+                stdout=out,
+            )
+            self.assertEqual(load_last(self.env(root)), "192.168.1.20:34567")
+        self.assertEqual(code, 0)
+        self.assertIn("connected to 192.168.1.20:34567", err.getvalue())
+        self.assertEqual(json.loads(out.getvalue()), {"ok": True, "connected": True})
+
+    def test_pair_rejects_a_code_that_is_not_six_digits(self):
+        err = io.StringIO()
+        fake = FakeAdb()
+        with TemporaryDirectory() as tmp:
+            code = main(
+                ["pair", "192.168.1.20:40123", "<img src=x>"],
+                environ=self.env(Path(tmp)),
+                adb_runner=fake,
+                stderr=err,
+            )
+        self.assertEqual(code, 2)
+        self.assertIn("6 digits", err.getvalue())
+        self.assertFalse(any(call[:2] == ["adb", "pair"] for call in fake.calls))
+
+    def test_status_ready_pair_and_off(self):
+        err = io.StringIO()
+        out = io.StringIO()
+        with TemporaryDirectory() as tmp:
+            code = main(
+                ["status"],
+                environ=self.env(Path(tmp)),
+                adb_runner=FakeAdb(),
+                stderr=err,
+                stdout=out,
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out.getvalue())["state"], "ready")
+
+        err = io.StringIO()
+        out = io.StringIO()
+        mdns = (
+            "adb-R5 _adb-tls-connect._tcp 192.168.1.46:35231\n"
+            "adb-R5 _adb-tls-pairing._tcp 192.168.1.46:41263\n"
+        )
+        with TemporaryDirectory() as tmp:
+            code = main(
+                ["status"],
+                environ=self.env(Path(tmp)),
+                adb_runner=FakeAdb(devices="List of devices attached\n", mdns=mdns, reject_connect=True),
+                stderr=err,
+                stdout=out,
+            )
+        self.assertEqual(code, 2)
+        self.assertEqual(
+            json.loads(out.getvalue()),
+            {"state": "pair", "pairing": "192.168.1.46:41263"},
+        )
+
+        out = io.StringIO()
+        with TemporaryDirectory() as tmp:
+            code = main(
+                ["status"],
+                environ=self.env(Path(tmp)),
+                adb_runner=FakeAdb(devices="List of devices attached\n"),
+                stderr=io.StringIO(),
+                stdout=out,
+            )
+        self.assertEqual(code, 3)
+        self.assertEqual(json.loads(out.getvalue())["state"], "off")
 
     def test_help_is_the_root_parser(self):
         import contextlib

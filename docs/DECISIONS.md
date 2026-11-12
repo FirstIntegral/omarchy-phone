@@ -2,6 +2,19 @@
 
 Append an entry (date + decision + why + rejected alternatives) in the same turn a meaningful choice is made.
 
+## 2026-11-12 The bar card takes the pairing code
+
+- **Decision:** A click on `firstintegral.phone` opens a `KeyboardPanel`. `omarchy-phone status` prints one JSON line. `ready` launches the mirror and closes the card. `pair` keeps the card up, with the phone steps and a 6-digit box. The port comes from `_adb-tls-pairing`. The code is checked as six digits, then passed as one argv element to `omarchy-phone pair`. Pair prints `{"ok","connected"}` on stdout. The card does not show adb text. Strings live in `i18n/en.json`.
+- **Why:** The key refusal was a chat message and a notification. The code only exists on the phone screen. The next time has to be solvable from the icon.
+- **Rejected:** typing the port as well as the code; a shell string that includes the code; leaving the one-tap launch in place when the key is refused, which exits with no window.
+- **Follow-up:** `omarchy-launch-or-focus 'Omarchy Phone'` is a case-insensitive substring match. On 2026-11-12 it matched the grok window title that contains `Omarchy phone`, focused that window, switched to its workspace, and warped the cursor to the window center. The card click must not call that helper. A `PopupCard` draws, and it does not take keys. `KeyboardPanel` does. While that card is open the launcher sets `cursor:no_warps` true and restores false on close, so the pointer stays put. The user confirmed the code box accepts typing. The shell hot reload kept the original click handler until `omarchy-restart-shell`. `share/hypr/phone.lua` now focuses class `scrcpy`. Hyprland has not reloaded that file.
+
+## 2026-11-12 Keep the wireless key, and say when the phone rejects it
+
+- **Decision:** A bar click that finds one advertising phone and gets `failed to connect` (not `Connection refused`) exits with `NeedsPairError`. The notification's first line is `Phone at <ip:port> refused this computer's key.` No USB setup essay on that path. `omarchy-phone pair` then `adb connect`s when exactly one `_adb-tls-connect` service is up, and saves that address. After any real open, the launcher runs `settings put global adb_allowed_connection_time 0` on that phone. A failed write still opens the mirror and prints one line.
+- **Why:** On 2026-11-12 the S24 Ultra (SM-S928B, `192.168.1.46`) advertised `_adb-tls-connect` on port 35231. TCP was open. The adb server log was `SSLV3_ALERT_CERTIFICATE_UNKNOWN` for `~/.android/adbkey` (key file dated 2026-10-22). The bar launched `omarchy-phone` and the process exited with no window. Android's default authorization lifetime is about seven days unless that developer switch is on. The saved port in `last.json` was already stale (`35095`, connection refused). Port rediscovery was already implemented. Key rejection was not.
+- **Rejected:** a QR pairing window (the popup code is the one step the phone must show); turning Wireless debugging on from here (the switch is off after reboot until the phone is already reachable); failing the mirror when the settings write is denied.
+
 ## 2026-10-22 Drop Super while the phone window is focused
 
 - **Decision:** `share/hypr/phone.lua` binds Left Super and Right Super with `auto_consuming`. The bind returns `{ ok = true }` only when the focused window is `scrcpy`, `scrcpy-desk`, `scrcpy-camera`, or one of the three Omarchy Phone titles. Otherwise it returns `{ ok = false }` and the key is passed on. `--shortcut-mod` stays `lalt`.

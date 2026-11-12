@@ -9,6 +9,10 @@ class DeviceChoiceError(Exception):
     """The phone list cannot be turned into one scrcpy target."""
 
 
+class NeedsPairError(DeviceChoiceError):
+    """A phone is advertising, and it rejected this computer's key."""
+
+
 @dataclass(frozen=True)
 class Device:
     serial: str
@@ -140,6 +144,30 @@ def connect_candidates(last: str | None, services: list[MdnsService]) -> list[st
     if len(connects) == 1 and connects[0] not in out:
         out.append(connects[0])
     return out
+
+
+def refused_address(services: list[MdnsService], failures: list[tuple[str, str]]) -> str | None:
+    """Live connect port whose failure was not a closed port. That is a rejected key."""
+    live = {service.address for service in services if service.kind == "connect"}
+    for address, text in failures:
+        if address not in live:
+            continue
+        if "connection refused" in text.lower():
+            continue
+        return address
+    return None
+
+
+def key_refused_text(address: str) -> str:
+    return (
+        f"Phone at {address} refused this computer's key.\n"
+        "Android drops that trust after about a week unless Developer options, "
+        "Disable adb authorization timeout, is on.\n"
+        "On the phone: Wireless debugging, Pair device with pairing code. "
+        "Leave that popup open.\n"
+        "Then run: omarchy-phone pair IP:PAIRPORT CODE\n"
+        "PAIRPORT is the popup port, not the port on the main page."
+    )
 
 
 def fallback_wm(model: str) -> tuple[int, int]:

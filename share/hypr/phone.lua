@@ -69,10 +69,9 @@ o.window({ title = "^Omarchy Phone Camera$" }, {
   keep_aspect_ratio = true,
 })
 
--- Focus the phone window by its title. A pattern of "scrcpy" also matches
--- any chat or terminal whose title merely mentions scrcpy, and the key
--- then looks like it did nothing.
-o.bind("SUPER + SHIFT + H", "Phone", { launch = "omarchy-phone", focus = "Omarchy Phone" })
+-- Focus by the scrcpy class. "Omarchy Phone" is a case-insensitive match,
+-- so a chat whose title contains those words takes the focus instead.
+o.bind("SUPER + SHIFT + H", "Phone", { launch = "omarchy-phone", focus = "scrcpy" })
 
 -- UHID forwards Super as KEYCODE_META_LEFT. One UI completes that key,
 -- alone, as ALL_APPS, which steps the phone back. That fires on release,

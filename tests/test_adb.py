@@ -2,12 +2,15 @@ import unittest
 
 from omarchy_phone.adb import (
     DeviceChoiceError,
+    MdnsService,
     choose_device,
     connect_candidates,
     fallback_wm,
+    key_refused_text,
     parse_devices,
     parse_mdns,
     parse_wm_size,
+    refused_address,
 )
 
 
@@ -117,6 +120,20 @@ class ChooseTests(unittest.TestCase):
             connect_candidates("10.0.0.2:5555", one),
             ["10.0.0.2:5555", "192.168.1.20:34567"],
         )
+
+    def test_refused_address_is_a_rejected_key(self):
+        live = [MdnsService("a", "connect", "192.168.1.46:35231")]
+        self.assertIsNone(
+            refused_address(live, [("192.168.1.46:35095", "Connection refused")])
+        )
+        self.assertIsNone(
+            refused_address(live, [("192.168.1.46:35231", "Connection refused")])
+        )
+        self.assertEqual(
+            refused_address(live, [("192.168.1.46:35231", "failed to connect to 192.168.1.46:35231")]),
+            "192.168.1.46:35231",
+        )
+        self.assertIn("PAIRPORT", key_refused_text("192.168.1.46:35231"))
 
 
 if __name__ == "__main__":
